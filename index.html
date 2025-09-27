@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kas Kontrakan Modern v2</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Plus Jakarta Sans Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Vue.js 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Lucide Icons script is no longer needed -->
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f0f2f5;
+        }
+        
+        /* --- ANIMATIONS --- */
+        .slide-right-enter-active,
+        .slide-right-leave-active,
+        .slide-left-enter-active,
+        .slide-left-leave-active {
+            transition: all 0.3s ease-out;
+        }
+
+        .slide-right-enter-from { transform: translateX(-20px); opacity: 0; }
+        .slide-right-leave-to { transform: translateX(20px); opacity: 0; }
+        
+        .slide-left-enter-from { transform: translateX(20px); opacity: 0; }
+        .slide-left-leave-to { transform: translateX(-20px); opacity: 0; }
+
+        .list-enter-active, .list-leave-active { transition: all 0.5s ease; }
+        .list-enter-from, .list-leave-to { opacity: 0; transform: translateX(30px); }
+        .list-move { transition: transform 0.5s ease; }
+        .modal-fade-enter-active { transition: all 0.3s ease-out; }
+        .modal-fade-leave-active { transition: all 0.2s ease-in; }
+        .modal-fade-enter-from, .modal-fade-leave-to { transform: scale(0.95); opacity: 0; }
+
+        /* Card Flip Animation */
+        .flip-card { perspective: 1000px; }
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            border-radius: 1rem; /* rounded-2xl */
+        }
+        .flip-card-back { transform: rotateY(180deg); }
+
+        /* Custom scrollbar */
+        .scroll-area { max-height: 450px; overflow-y: auto; }
+        .scroll-area::-webkit-scrollbar { width: 6px; }
+        .scroll-area::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 3px; }
+    </style>
+</head>
+<body class="p-2 sm:p-4">
+
+<div id="app" class="max-w-xl mx-auto">
+    
+    <header class="text-center mb-8">
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-800">Kas Pisang 🍌</h1>
+        <p class="text-slate-500 mt-2">Kelola Keuangan Kontrakan, Bersama & Teratur.</p>
+    </header>
+
+    <div class="bg-white p-6 rounded-2xl shadow-lg mb-8 border-t-4 border-emerald-500">
+        <p class="text-sm font-medium text-slate-500">Total Saldo Kas</p>
+        <p class="text-4xl sm:text-5xl font-extrabold" :class="totalBalance >= 0 ? 'text-emerald-600' : 'text-red-600'">
+            {{ formatRupiah(totalBalance) }}
+        </p>
+    </div>
+
+    <!-- TAB NAVIGASI -->
+    <div class="flex mb-8 bg-white p-1.5 rounded-full shadow-md">
+        <button @click="setActiveTab('dashboard', 0)" :class="{'bg-indigo-600 text-white shadow-lg': activeTab === 'dashboard', 'text-slate-700 hover:bg-indigo-50': activeTab !== 'dashboard'}" class="flex-1 py-3 px-2 rounded-full font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+            Dashboard
+        </button>
+        <button @click="setActiveTab('input', 1)" :class="{'bg-indigo-600 text-white shadow-lg': activeTab === 'input', 'text-slate-700 hover:bg-indigo-50': activeTab !== 'input'}" class="flex-1 py-3 px-2 rounded-full font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+            Input
+        </button>
+        <button @click="setActiveTab('list', 2)" :class="{'bg-indigo-600 text-white shadow-lg': activeTab === 'list', 'text-slate-700 hover:bg-indigo-50': activeTab !== 'list'}" class="flex-1 py-3 px-2 rounded-full font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            Riwayat
+        </button>
+        <button @click="setActiveTab('settings', 3)" :class="{'bg-indigo-600 text-white shadow-lg': activeTab === 'settings', 'text-slate-700 hover:bg-indigo-50': activeTab !== 'settings'}" class="flex-1 py-3 px-2 rounded-full font-semibold transition-all duration-300 text-xs sm:text-sm flex items-center justify-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            Pengaturan
+        </button>
+    </div>
+
+    <transition :name="transitionName" mode="out-in">
+        <div :key="activeTab" class="tab-content">
+            <!-- === TAB DASHBOARD === -->
+            <section v-if="activeTab === 'dashboard'" class="space-y-8">
+                <!-- Status Galon -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-cyan-500">
+                    <h2 class="text-xl font-bold mb-5 text-slate-800">Status Galon</h2>
+                    <div class="flex justify-around items-end text-center mb-6">
+                        <div class="flex-1">
+                            <p class="text-xs text-slate-400 mb-1">Kemarin</p>
+                            <p class="text-lg font-semibold text-slate-600 p-2 bg-slate-100 rounded-lg">{{ previousGalonPayer }}</p>
+                        </div>
+                        <div class="flex-1 mx-2">
+                            <p class="text-sm text-cyan-700 mb-1 font-semibold">Sekarang</p>
+                            <p class="text-3xl font-extrabold text-cyan-600 p-3 bg-cyan-50 rounded-xl shadow-inner">{{ currentGalonPayer }}</p>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs text-slate-400 mb-1">Berikutnya</p>
+                            <p class="text-lg font-semibold text-slate-600 p-2 bg-slate-100 rounded-lg">{{ nextGalonPayer }}</p>
+                        </div>
+                    </div>
+                    <button @click="openGalonModal" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-lg transition shadow-lg flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.7-3.02C8.23 8.5 8 7.22 8 6c0-2.2 1.8-4 4-4s4 1.8 4 4c0 1.22-.23 2.5-.9 3.23-.73.5-1.1 1.2-1.1 1.95S14.27 13 15 13.7c.5.5.7 1.12.7 1.75 0 2.22-1.8 4.02-4 4.02-1.48 0-2.8-.78-3.5-2.02"/><path d="M10.27 21.9a1 1 0 0 0 1.41 0l2.32-2.32"/></svg>
+                        Beli Galon Sekarang
+                    </button>
+                </div>
+                
+                <!-- Aksi Patungan -->
+                <div>
+                    <h2 class="text-xl font-bold mb-4 text-slate-800">Aksi Patungan</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Card Flip: Wifi -->
+                        <div class="flip-card h-32" :class="{'flipped': cardStates.wifi}">
+                            <div class="flip-card-inner">
+                                <div @click="cardStates.wifi = true" class="flip-card-front p-4 bg-indigo-500 text-white shadow-lg cursor-pointer flex flex-col justify-between">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></svg>
+                                    <span class="font-bold text-lg">Patungan Wifi</span>
+                                </div>
+                                <div class="flip-card-back p-4 bg-white border-2 border-indigo-200 shadow-lg">
+                                    <p class="font-bold text-sm text-indigo-700 mb-2">Iuran Wifi ({{formatRupiah(appSettings.wifiPrice)}})</p>
+                                    <form @submit.prevent="initiatePatungan('wifi')" class="flex flex-col h-full">
+                                        <input v-model="patunganForms.wifi.title" type="text" placeholder="Ex: Wifi Okt 2025" required class="w-full text-xs p-2 border rounded mb-2">
+                                        <button type="submit" class="w-full mt-auto text-xs bg-indigo-500 text-white p-2 rounded-lg hover:bg-indigo-600">Mulai</button>
+                                    </form>
+                                    <button @click.stop="cardStates.wifi = false" class="absolute top-1 right-1 text-slate-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Card Flip: Listrik -->
+                        <div class="flip-card h-32" :class="{'flipped': cardStates.listrik}">
+                            <div class="flip-card-inner">
+                                <div @click="cardStates.listrik = true" class="flip-card-front p-4 bg-amber-500 text-white shadow-lg cursor-pointer flex flex-col justify-between">
+                                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                    <span class="font-bold text-lg">Patungan Listrik</span>
+                                </div>
+                                <div class="flip-card-back p-4 bg-white border-2 border-amber-200 shadow-lg">
+                                    <p class="font-bold text-sm text-amber-700 mb-2">Iuran Token Listrik</p>
+                                    <form @submit.prevent="initiatePatungan('listrik')" class="flex flex-col h-full">
+                                        <input v-model="patunganForms.listrik.title" type="text" placeholder="Ex: Token 100k" required class="w-full text-xs p-2 border rounded mb-1">
+                                        <input v-model="formattedListrikTarget" type="text" inputmode="numeric" placeholder="Target Beli (Rp)" required class="w-full text-xs p-2 border rounded mb-2">
+                                        <button type="submit" class="w-full mt-auto text-xs bg-amber-500 text-white p-2 rounded-lg hover:bg-amber-600">Mulai</button>
+                                    </form>
+                                    <button @click.stop="cardStates.listrik = false" class="absolute top-1 right-1 text-slate-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Card: Kustom -->
+                        <div @click="openCustomPatunganModal" class="p-4 h-32 bg-slate-600 text-white rounded-2xl shadow-lg flex flex-col justify-between cursor-pointer hover:scale-105 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            <span class="font-bold text-lg">Patungan Kustom</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patungan Aktif -->
+                <div>
+                    <h2 class="text-xl font-bold mb-4 text-slate-800">Patungan Aktif</h2>
+                    <div v-if="activeBills.length > 0" class="space-y-4">
+                        <div v-for="bill in activeBills" :key="bill.id" class="bg-white p-4 rounded-2xl shadow-lg relative">
+                             <button @click="openCancelModal(bill)" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-bold text-slate-800">{{ bill.title }}</p>
+                                    <p class="text-xs text-slate-500">{{ getBillTypeDescription(bill.type) }}</p>
+                                </div>
+                                <span class="text-xs font-semibold px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">Mengumpulkan</span>
+                            </div>
+                            <div class="mt-4">
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-semibold text-slate-600">Terkumpul</span>
+                                    <span>{{ formatRupiah(bill.totalCollected) }} / {{ formatRupiah(bill.targetTotal) }}</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2.5"><div class="bg-emerald-500 h-2.5 rounded-full" :style="{ width: (bill.totalCollected / bill.targetTotal * 100) + '%' }"></div></div>
+                            </div>
+                            <div class="mt-4">
+                                <p class="text-sm font-semibold mb-2 text-slate-600">Partisipan ({{ bill.participants.filter(p => p.paid).length }}/{{ bill.participants.length }})</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label v-for="p in bill.participants" :key="p.name" class="flex items-center p-2 border rounded-lg cursor-pointer transition-colors" :class="p.paid ? 'bg-emerald-50 border-emerald-300' : 'hover:bg-slate-50'">
+                                        <input type="checkbox" :checked="p.paid" @change="markAsPaid(bill.id, p.name)" class="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500">
+                                        <span class="ml-2 text-sm text-slate-700">{{ p.name }}</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div v-if="bill.totalCollected >= bill.targetTotal" class="mt-4">
+                                <button @click="openSettleModal(bill)" class="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 rounded-lg transition shadow-lg">Bayar & Selesaikan</button>
+                            </div>
+                        </div>
+                    </div>
+                    <p v-else class="text-center text-slate-500 py-6 bg-slate-50 rounded-2xl">Tidak ada patungan yang sedang aktif.</p>
+                </div>
+            </section>
+            
+            <!-- === TAB INPUT === -->
+            <section v-if="activeTab === 'input'" class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-indigo-600">
+                <h2 class="text-xl font-bold mb-6 text-slate-800">Input Transaksi Umum</h2>
+                <form @submit.prevent="addSimpleTransaction" class="space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Jenis Transaksi</label>
+                        <div class="flex space-x-2">
+                            <button type="button" @click="simpleForm.type = 'income'" :class="{'bg-emerald-100 border-emerald-500': simpleForm.type === 'income', 'bg-slate-100 border-slate-300': simpleForm.type !== 'income'}" class="flex-1 p-3 rounded-lg border-2 font-semibold transition">Pemasukan</button>
+                            <button type="button" @click="simpleForm.type = 'expense'" :class="{'bg-red-100 border-red-500': simpleForm.type === 'expense', 'bg-slate-100 border-slate-300': simpleForm.type !== 'expense'}" class="flex-1 p-3 rounded-lg border-2 font-semibold transition">Pengeluaran</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Keterangan</label>
+                        <input type="text" v-model="simpleForm.description" required placeholder="Contoh: Iuran kas wajib, Beli sapu" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Nilai (Rp)</label>
+                        <input type="text" inputmode="numeric" v-model="formattedSimpleAmount" required class="w-full p-3 border border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <button type="submit" :disabled="!simpleForm.description || !simpleForm.amount" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition shadow-xl disabled:bg-slate-400 flex items-center justify-center gap-2">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                         Catat Transaksi
+                    </button>
+                </form>
+            </section>
+
+            <!-- === TAB RIWAYAT === -->
+            <section v-if="activeTab === 'list'" class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-indigo-600">
+                <h2 class="text-xl font-bold mb-4 text-slate-800">Riwayat Transaksi</h2>
+                <div class="scroll-area pr-2">
+                    <transition-group v-if="combinedHistory.length > 0" name="list" tag="ul" class="space-y-3">
+                        <li v-for="item in combinedHistory" :key="item.id" class="p-4 rounded-xl flex items-center transition duration-200" :class="getHistoryItemClass(item.type)">
+                            <div class="mr-4" v-html="getHistoryItemIcon(item.type)"></div>
+                            <div class="flex-1 min-w-0">
+                                <p class="font-bold truncate text-slate-800">{{ item.title }}</p>
+                                <p class="text-xs text-slate-500 mt-0.5">{{ item.details }}</p>
+                            </div>
+                            <div class="text-right ml-2">
+                                <p class="font-extrabold whitespace-nowrap" :class="getAmountColor(item.type, item.amount)">
+                                    {{ item.amount > 0 ? '+' : '' }}{{ formatRupiah(item.amount) }}
+                                </p>
+                                <p class="text-xs text-slate-400">{{ formatDate(item.date) }}</p>
+                            </div>
+                        </li>
+                    </transition-group>
+                    <p v-else class="text-center text-slate-500 py-10">Belum ada riwayat transaksi.</p>
+                </div>
+            </section>
+            
+            <!-- === TAB PENGATURAN === -->
+            <section v-if="activeTab === 'settings'" class="space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-slate-500">
+                    <h2 class="text-xl font-bold mb-6 text-slate-800">Pengaturan Harga Default</h2>
+                    <form @submit.prevent class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Harga Default Galon</label>
+                            <input type="text" inputmode="numeric" v-model="formattedSettingGalon" class="w-full p-3 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Biaya Tambahan Patungan</label>
+                            <input type="text" inputmode="numeric" v-model="formattedSettingFee" class="w-full p-3 border border-slate-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Harga Wifi Bulanan</label>
+                            <input type="text" inputmode="numeric" v-model="formattedSettingWifi" class="w-full p-3 border border-slate-300 rounded-lg">
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg border-t-4 border-red-500">
+                    <h2 class="text-xl font-bold mb-4 text-slate-800">Zona Berbahaya</h2>
+                    <p class="text-sm text-slate-600 mb-4">Aksi ini akan menghapus semua data transaksi, patungan, dan pengaturan secara permanen.</p>
+                    <button @click="openResetModal" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg transition shadow-lg flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                        Reset Semua Data
+                    </button>
+                </div>
+            </section>
+
+        </div>
+    </transition>
+    
+    <!-- MODALS -->
+    <transition name="modal-fade">
+        <div v-if="showSettleModal || showGalonModal || showCustomPatunganModal || showCancelModal || showResetModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <!-- Settle Bill Modal -->
+            <div v-if="showSettleModal && billToSettle" class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
+                <h3 class="text-lg font-bold text-indigo-600 mb-4">Selesaikan: {{ billToSettle.title }}</h3>
+                <form @submit.prevent="settleBill" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Dibayar Oleh</label>
+                        <select v-model="settleForm.paidBy" required class="w-full p-3 border border-slate-300 rounded-lg"><option v-for="member in members" :key="member" :value="member">{{ member }}</option></select>
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Total Biaya Aktual</label>
+                        <input type="text" inputmode="numeric" v-model="formattedSettleAmount" required class="w-full p-3 border border-slate-300 rounded-lg">
+                    </div>
+                    <div>
+                         <label class="block text-sm font-medium text-slate-700 mb-2">Metode Pembayaran</label>
+                        <div class="flex space-x-2">
+                            <label class="flex-1 p-3 border-2 rounded-lg cursor-pointer transition-colors" :class="settleForm.paymentMethod === 'member_cash' ? 'bg-indigo-50 border-indigo-400' : 'hover:bg-slate-50'">
+                                <input type="radio" value="member_cash" v-model="settleForm.paymentMethod" class="sr-only">
+                                <span class="font-semibold text-slate-800 text-sm">Tunai Anggota</span>
+                                <p class="text-xs text-slate-500">Kas hanya terima sisa</p>
+                            </label>
+                             <label class="flex-1 p-3 border-2 rounded-lg cursor-pointer transition-colors" :class="settleForm.paymentMethod === 'kontrakan_fund' ? 'bg-indigo-50 border-indigo-400' : 'hover:bg-slate-50'">
+                                <input type="radio" value="kontrakan_fund" v-model="settleForm.paymentMethod" class="sr-only">
+                                <span class="font-semibold text-slate-800 text-sm">Uang Kas</span>
+                                <p class="text-xs text-slate-500">Kas berkurang</p>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Bukti Bayar (Opsional)</label>
+                        <input type="file" @change="handleProofUpload" accept="image/*" class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        <p v-if="settleForm.proofImageUrl" class="text-xs text-emerald-600 mt-2">✓ Gambar siap diunggah.</p>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" @click="showSettleModal = false" class="py-2 px-4 bg-slate-200 rounded-lg hover:bg-slate-300 font-semibold">Batal</button>
+                        <button type="submit" class="py-2 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Konfirmasi</button>
+                    </div>
+                </form>
+            </div>
+            <!-- Galon Purchase Modal -->
+            <div v-if="showGalonModal" class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
+                <h3 class="text-lg font-bold text-cyan-600 mb-2">Konfirmasi Beli Galon</h3>
+                <p class="text-slate-700 mb-4">Giliran <span class="font-bold">{{ currentGalonPayer }}</span> untuk membeli galon. Pilih metode pembayaran:</p>
+                <form @submit.prevent="confirmBuyGalon" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Harga Galon (Rp)</label>
+                        <input type="text" inputmode="numeric" v-model="formattedGalonPrice" required class="w-full p-3 border border-slate-300 rounded-lg">
+                    </div>
+                    <div>
+                        <div class="flex space-x-2">
+                            <label class="flex-1 p-3 border-2 rounded-lg cursor-pointer transition-colors" :class="galonForm.paymentMethod === 'member_cash' ? 'bg-indigo-50 border-indigo-400' : 'hover:bg-slate-50'">
+                                <input type="radio" value="member_cash" v-model="galonForm.paymentMethod" class="sr-only">
+                                <span class="font-semibold text-slate-800">Tunai Anggota</span>
+                                <p class="text-xs text-slate-500">Kas tidak berkurang</p>
+                            </label>
+                             <label class="flex-1 p-3 border-2 rounded-lg cursor-pointer transition-colors" :class="galonForm.paymentMethod === 'kontrakan_fund' ? 'bg-indigo-50 border-indigo-400' : 'hover:bg-slate-50'">
+                                <input type="radio" value="kontrakan_fund" v-model="galonForm.paymentMethod" class="sr-only">
+                                <span class="font-semibold text-slate-800">Uang Kas</span>
+                                <p class="text-xs text-slate-500">Kas berkurang</p>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" @click="showGalonModal = false" class="py-2 px-4 bg-slate-200 rounded-lg hover:bg-slate-300 font-semibold">Batal</button>
+                        <button type="submit" class="py-2 px-4 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 font-semibold">Konfirmasi</button>
+                    </div>
+                </form>
+            </div>
+            <!-- Custom Patungan Modal -->
+            <div v-if="showCustomPatunganModal" class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
+                <h3 class="text-lg font-bold text-slate-700 mb-4">Buat Patungan Kustom</h3>
+                <form @submit.prevent="initiateCustomPatungan" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Judul</label>
+                        <input type="text" v-model="customPatunganForm.title" required placeholder="Contoh: Beli Gas Elpiji" class="w-full p-3 border border-slate-300 rounded-lg">
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Total Biaya</label>
+                        <input type="text" inputmode="numeric" v-model="formattedCustomTarget" required placeholder="Contoh: 23.000" class="w-full p-3 border border-slate-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Pilih Partisipan</label>
+                        <div class="grid grid-cols-2 gap-2">
+                             <label v-for="member in members" :key="member" class="flex items-center p-2 border rounded-lg cursor-pointer" :class="customPatunganForm.selectedMembers.includes(member) ? 'bg-indigo-50 border-indigo-300' : 'hover:bg-slate-50'">
+                                <input type="checkbox" :value="member" v-model="customPatunganForm.selectedMembers" class="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm text-slate-700">{{ member }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div v-if="customPatunganForm.targetAmount && customPatunganForm.selectedMembers.length > 0">
+                        <p class="text-sm text-center text-slate-600 bg-slate-100 p-2 rounded-lg">
+                           Iuran per orang: <span class="font-bold">{{ formatRupiah(customPatunganForm.targetAmount / customPatunganForm.selectedMembers.length) }}</span>
+                        </p>
+                    </div>
+                    <div class="flex justify-end space-x-3 pt-4">
+                        <button type="button" @click="showCustomPatunganModal = false" class="py-2 px-4 bg-slate-200 rounded-lg hover:bg-slate-300 font-semibold">Batal</button>
+                        <button type="submit" class="py-2 px-4 bg-slate-700 text-white rounded-lg hover:bg-slate-800 font-semibold">Mulai Patungan</button>
+                    </div>
+                </form>
+            </div>
+            <!-- Cancel Patungan Modal -->
+            <div v-if="showCancelModal && billToCancel" class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
+                <h3 class="text-lg font-bold text-red-600 mb-4">Batalkan Patungan?</h3>
+                <p class="text-slate-700 mb-6">Anda yakin ingin membatalkan patungan <span class="font-bold">"{{billToCancel.title}}"</span>? Aksi ini tidak dapat diurungkan.</p>
+                <div class="flex justify-end space-x-3">
+                    <button @click="showCancelModal = false" class="py-2 px-4 bg-slate-200 rounded-lg hover:bg-slate-300 font-semibold">Tidak</button>
+                    <button @click="confirmCancelPatungan" class="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold">Ya, Batalkan</button>
+                </div>
+            </div>
+             <!-- Reset Data Modal -->
+            <div v-if="showResetModal" class="bg-white p-6 rounded-2xl shadow-2xl max-w-sm w-full">
+                <h3 class="text-lg font-bold text-red-600 mb-4">Reset Semua Data?</h3>
+                <p class="text-slate-700 mb-6">Semua data transaksi, patungan, dan pengaturan akan dihapus permanen. Lanjutkan?</p>
+                <div class="flex justify-end space-x-3">
+                    <button @click="showResetModal = false" class="py-2 px-4 bg-slate-200 rounded-lg hover:bg-slate-300 font-semibold">Tidak</button>
+                    <button @click="confirmResetData" class="py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold">Ya, Reset Sekarang</button>
+                </div>
+            </div>
+        </div>
+    </transition>
+</div>
+
+<script>
+    const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            // --- DEFAULTS ---
+            const defaultSettings = {
+                galonDefault: 7000,
+                extraFee: 5000,
+                wifiPrice: 300000,
+            };
+
+            const tabConfig = [
+                { name: 'dashboard', index: 0 },
+                { name: 'input', index: 1 },
+                { name: 'list', index: 2 },
+                { name: 'settings', index: 3 },
+            ];
+
+            // --- STATE MANAGEMENT ---
+            const members = ref(['Bima', 'Angga', 'Jimmy', 'Faiz']);
+            const activeTab = ref('dashboard');
+            const appSettings = ref(JSON.parse(localStorage.getItem('kasKontrakanV2_settings')) || { ...defaultSettings });
+            const transactions = ref(JSON.parse(localStorage.getItem('kasKontrakanV2_trans')) || []);
+            const sharedBills = ref(JSON.parse(localStorage.getItem('kasKontrakanV2_bills')) || []);
+            const galonPayerIndex = ref(parseInt(localStorage.getItem('kasKontrakanV2_galonIdx')) || 0);
+            
+            // UI State
+            const currentTabIndex = ref(0);
+            const previousTabIndex = ref(0);
+            const transitionName = ref('slide-left');
+            const cardStates = ref({ wifi: false, listrik: false });
+            const showSettleModal = ref(false);
+            const billToSettle = ref(null);
+            const showGalonModal = ref(false);
+            const showCustomPatunganModal = ref(false);
+            const showCancelModal = ref(false);
+            const billToCancel = ref(null);
+            const showResetModal = ref(false);
+
+            // Form Models
+            const patunganForms = ref({ 
+                wifi: { title: '' }, 
+                listrik: { title: '', targetAmount: null }
+            });
+            const customPatunganForm = ref({
+                title: '',
+                targetAmount: null,
+                selectedMembers: []
+            });
+            const settleForm = ref({ paidBy: members.value[0], actualAmount: null, proofImageUrl: null, paymentMethod: 'member_cash' });
+            const simpleForm = ref({ type: 'expense', description: '', amount: null });
+            const galonForm = ref({ paymentMethod: 'member_cash', price: appSettings.value.galonDefault });
+
+            // --- COMPUTED PROPERTIES ---
+            const totalBalance = computed(() => {
+                return transactions.value.reduce((sum, t) => {
+                    const amount = t.amount || 0;
+                    if (['income', 'bill_surplus'].includes(t.type)) return sum + amount;
+                    if (['expense', 'galon_expense', 'patungan_expense'].includes(t.type)) return sum - amount;
+                    return sum;
+                }, 0);
+            });
+            
+            const activeBills = computed(() => sharedBills.value.filter(b => b.status === 'collecting'));
+            const combinedHistory = computed(() => {
+                const simpleHistory = transactions.value.map(t => ({
+                    id: t.id, date: t.date, title: t.description,
+                    amount: ['income', 'bill_surplus'].includes(t.type) ? t.amount : -t.amount,
+                    details: t.type === 'galon_expense' ? `Pembelian galon dari kas` : t.type === 'patungan_expense' ? 'Pembayaran patungan dari kas' : `Transaksi umum`,
+                    type: t.type
+                }));
+                const billHistory = sharedBills.value.filter(b => b.status === 'settled').map(b => {
+                    let details;
+                    let amount;
+                    if (b.type === 'galon') {
+                        details = `Dibayar oleh ${b.paymentDetails.paidBy}. Metode: ${b.paymentDetails.method === 'kontrakan_fund' ? 'Kas Kontrakan' : 'Tunai Anggota'}`;
+                        amount = b.paymentDetails.method === 'kontrakan_fund' ? -b.paymentDetails.actualAmount : 0;
+                    } else {
+                        details = `Dibayar oleh ${b.paymentDetails.paidBy} via ${b.paymentDetails.paymentMethod === 'kontrakan_fund' ? 'Uang Kas' : 'Tunai Anggota'}.`;
+                        if (b.settlement.surplus > 0) {
+                            details += ` Sisa ${formatRupiah(b.settlement.surplus)} masuk kas.`;
+                        } else if (b.settlement.surplus < 0) {
+                            details += ` Kurang ${formatRupiah(Math.abs(b.settlement.surplus))} ditanggung pembayar.`;
+                        }
+                        amount = b.paymentDetails.paymentMethod === 'kontrakan_fund' ? -b.paymentDetails.actualAmount : 0;
+                    }
+                    return {
+                        id: b.id, date: b.paymentDetails.date, title: b.title,
+                        amount: amount, details: details, type: `bill_${b.type}`
+                    };
+                });
+                return [...simpleHistory, ...billHistory].sort((a, b) => new Date(b.date) - new Date(a.date));
+            });
+
+            const currentGalonPayer = computed(() => members.value[galonPayerIndex.value]);
+            const previousGalonPayer = computed(() => members.value[(galonPayerIndex.value - 1 + members.value.length) % members.value.length]);
+            const nextGalonPayer = computed(() => members.value[(galonPayerIndex.value + 1) % members.value.length]);
+
+            // --- FORMATTED INPUTS ---
+            const createFormattedInput = (targetObject, key) => {
+                return computed({
+                    get: () => {
+                        const value = targetObject.value[key];
+                        if (value === null || value === undefined) return '';
+                        return value.toLocaleString('id-ID');
+                    },
+                    set: (newValue) => {
+                        const numericValue = parseInt(String(newValue).replace(/[^0-9]/g, ''), 10);
+                        targetObject.value[key] = isNaN(numericValue) ? null : numericValue;
+                    }
+                });
+            };
+            const createNestedFormattedInput = (targetObject, key1, key2) => {
+                 return computed({
+                    get: () => {
+                        const value = targetObject.value[key1][key2];
+                        if (value === null || value === undefined) return '';
+                        return value.toLocaleString('id-ID');
+                    },
+                    set: (newValue) => {
+                        const numericValue = parseInt(String(newValue).replace(/[^0-9]/g, ''), 10);
+                        targetObject.value[key1][key2] = isNaN(numericValue) ? null : numericValue;
+                    }
+                });
+            };
+
+            const formattedSimpleAmount = createFormattedInput(simpleForm, 'amount');
+            const formattedListrikTarget = createNestedFormattedInput(patunganForms, 'listrik', 'targetAmount');
+            const formattedCustomTarget = createFormattedInput(customPatunganForm, 'targetAmount');
+            const formattedSettleAmount = createFormattedInput(settleForm, 'actualAmount');
+            const formattedGalonPrice = createFormattedInput(galonForm, 'price');
+            const formattedSettingGalon = createFormattedInput(appSettings, 'galonDefault');
+            const formattedSettingFee = createFormattedInput(appSettings, 'extraFee');
+            const formattedSettingWifi = createFormattedInput(appSettings, 'wifiPrice');
+
+
+            // --- WATCHERS & LIFECYCLE ---
+            watch(transactions, (val) => localStorage.setItem('kasKontrakanV2_trans', JSON.stringify(val)), { deep: true });
+            watch(sharedBills, (val) => localStorage.setItem('kasKontrakanV2_bills', JSON.stringify(val)), { deep: true });
+            watch(galonPayerIndex, (val) => localStorage.setItem('kasKontrakanV2_galonIdx', val.toString()));
+            watch(appSettings, (val) => localStorage.setItem('kasKontrakanV2_settings', JSON.stringify(val)), { deep: true });
+            
+            // --- METHODS ---
+             const setActiveTab = (tabName, index) => {
+                previousTabIndex.value = currentTabIndex.value;
+                currentTabIndex.value = index;
+                activeTab.value = tabName;
+                if (previousTabIndex.value < currentTabIndex.value) {
+                    transitionName.value = 'slide-left';
+                } else {
+                    transitionName.value = 'slide-right';
+                }
+            };
+
+            const formatRupiah = (number) => {
+                if (typeof number !== 'number') return 'Rp 0';
+                return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+            }
+            const getBillTypeDescription = (type) => ({'wifi': 'Iuran Wifi', 'listrik': 'Iuran Listrik', 'custom': 'Patungan Kustom'}[type] || 'Patungan');
+            const formatDate = (dateString) => new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+            
+            const getHistoryItemClass = (type) => {
+                const classMap = { income: 'bg-emerald-50 border-emerald-400', bill_surplus: 'bg-emerald-50 border-emerald-400', expense: 'bg-red-50 border-red-400', galon_expense: 'bg-red-50 border-red-400', patungan_expense: 'bg-red-50 border-red-400', bill_galon: 'bg-cyan-50 border-cyan-400', bill_wifi: 'bg-indigo-50 border-indigo-400', bill_listrik: 'bg-amber-50 border-amber-400', bill_custom: 'bg-slate-50 border-slate-400' };
+                return `${classMap[type] || 'bg-gray-50 border-gray-400'} border-l-4`;
+            };
+
+            const getHistoryItemIcon = (type) => {
+                 const iconSVG = { 
+                    income: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17"/><path d="M17 17H7V7"/></svg>', 
+                    expense: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17V7h10"/><path d="M7 7 17 17"/></svg>', 
+                    bill_surplus: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>', 
+                    galon_expense: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.7-3.02C8.23 8.5 8 7.22 8 6c0-2.2 1.8-4 4-4s4 1.8 4 4c0 1.22-.23 2.5-.9 3.23-.73.5-1.1 1.2-1.1 1.95S14.27 13 15 13.7c.5.5.7 1.12.7 1.75 0 2.22-1.8 4.02-4 4.02-1.48 0-2.8-.78-3.5-2.02"/><path d="M10.27 21.9a1 1 0 0 0 1.41 0l2.32-2.32"/></svg>', 
+                    patungan_expense: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17V7h10"/><path d="M7 7 17 17"/></svg>',
+                    bill_galon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.7-3.02C8.23 8.5 8 7.22 8 6c0-2.2 1.8-4 4-4s4 1.8 4 4c0 1.22-.23 2.5-.9 3.23-.73.5-1.1 1.2-1.1 1.95S14.27 13 15 13.7c.5.5.7 1.12.7 1.75 0 2.22-1.8 4.02-4 4.02-1.48 0-2.8-.78-3.5-2.02"/><path d="M10.27 21.9a1 1 0 0 0 1.41 0l2.32-2.32"/></svg>', 
+                    bill_wifi: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" x2="12.01" y1="20" y2="20"/></svg>', 
+                    bill_listrik: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>', 
+                    bill_custom: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+                };
+                return iconSVG[type] || '';
+            };
+            
+            const getAmountColor = (type, amount) => {
+                if (type === 'bill_galon' && amount === 0) return 'text-slate-500'; // Tunai
+                if (type.startsWith('bill_') && amount === 0) return 'text-slate-500'; // Patungan via Tunai
+                return amount >= 0 ? 'text-emerald-600' : 'text-red-600';
+            };
+
+            const addSimpleTransaction = () => {
+                if(!simpleForm.value.description || !simpleForm.value.amount) return;
+                transactions.value.push({
+                    id: Date.now(),
+                    date: new Date().toISOString(),
+                    type: simpleForm.value.type,
+                    description: simpleForm.value.description,
+                    amount: simpleForm.value.amount
+                });
+                simpleForm.value = { type: 'expense', description: '', amount: null };
+                activeTab.value = 'list';
+                setActiveTab('list', 2);
+            };
+
+            const initiatePatungan = (type) => {
+                const form = patunganForms.value[type];
+                if (!form.title) return;
+
+                let participants = members.value.map(name => ({ name, paid: false, amount: 0 }));
+                const extraFee = appSettings.value.extraFee || 5000;
+
+                if (type === 'wifi') {
+                    const targetAmount = appSettings.value.wifiPrice || 300000;
+                    const amountPerPerson = Math.ceil(targetAmount / members.value.length) + extraFee;
+                    participants.forEach(p => p.amount = amountPerPerson);
+                } else if (type === 'listrik') {
+                    if (!form.targetAmount || form.targetAmount <= 0) return;
+                    const targetAmount = form.targetAmount;
+                    const amountPerPerson = Math.ceil(targetAmount / members.value.length) + extraFee;
+                    participants.forEach(p => p.amount = amountPerPerson);
+                }
+
+                sharedBills.value.push({
+                    id: Date.now(), type, title: form.title, status: 'collecting',
+                    targetAmountPerPerson: participants[0].amount,
+                    targetTotal: participants.reduce((sum, p) => sum + p.amount, 0),
+                    totalCollected: 0,
+                    participants, paymentDetails: null, settlement: null,
+                });
+
+                form.title = '';
+                if(form.targetAmount) form.targetAmount = null;
+                cardStates.value[type] = false;
+            };
+
+            const openCustomPatunganModal = () => {
+                customPatunganForm.value = { title: '', targetAmount: null, selectedMembers: [...members.value] };
+                showCustomPatunganModal.value = true;
+            };
+
+            const initiateCustomPatungan = () => {
+                const form = customPatunganForm.value;
+                if (!form.title || !form.targetAmount || form.selectedMembers.length === 0) return;
+                
+                const amountPerPerson = Math.ceil(form.targetAmount / form.selectedMembers.length);
+                const participants = form.selectedMembers.map(name => ({ name, paid: false, amount: amountPerPerson }));
+
+                sharedBills.value.push({
+                    id: Date.now(), type: 'custom', title: form.title, status: 'collecting',
+                    targetAmountPerPerson: amountPerPerson,
+                    targetTotal: participants.reduce((sum, p) => sum + p.amount, 0),
+                    totalCollected: 0,
+                    participants, paymentDetails: null, settlement: null,
+                });
+                
+                showCustomPatunganModal.value = false;
+            };
+
+            const markAsPaid = (billId, memberName) => {
+                const bill = sharedBills.value.find(b => b.id === billId);
+                const participant = bill.participants.find(p => p.name === memberName);
+                participant.paid = !participant.paid;
+                bill.totalCollected = bill.participants.reduce((sum, p) => p.paid ? sum + p.amount : sum, 0);
+            };
+
+            const openSettleModal = (bill) => {
+                billToSettle.value = bill;
+                settleForm.value = { paidBy: members.value[0], actualAmount: bill.targetTotal, proofImageUrl: null, paymentMethod: 'member_cash' };
+                showSettleModal.value = true;
+            };
+
+            const openGalonModal = () => {
+                galonForm.value = { paymentMethod: 'member_cash', price: appSettings.value.galonDefault };
+                showGalonModal.value = true;
+            };
+            
+            const openCancelModal = (bill) => {
+                billToCancel.value = bill;
+                showCancelModal.value = true;
+            };
+            
+            const confirmCancelPatungan = () => {
+                if (!billToCancel.value) return;
+                sharedBills.value = sharedBills.value.filter(b => b.id !== billToCancel.value.id);
+                showCancelModal.value = false;
+                billToCancel.value = null;
+            };
+            
+            const openResetModal = () => {
+                showResetModal.value = true;
+            };
+
+            const confirmResetData = () => {
+                localStorage.removeItem('kasKontrakanV2_trans');
+                localStorage.removeItem('kasKontrakanV2_bills');
+                localStorage.removeItem('kasKontrakanV2_galonIdx');
+                localStorage.removeItem('kasKontrakanV2_settings');
+                location.reload();
+            };
+
+            const confirmBuyGalon = () => {
+                if (!galonForm.value.price || galonForm.value.price <= 0) return;
+                const galonPrice = galonForm.value.price;
+                const payer = currentGalonPayer.value;
+                const now = new Date();
+                const paymentMethod = galonForm.value.paymentMethod;
+
+                if (paymentMethod === 'kontrakan_fund') {
+                    transactions.value.push({
+                        id: now.getTime(),
+                        date: now.toISOString(),
+                        type: 'galon_expense',
+                        description: `Beli Galon (oleh ${payer})`,
+                        amount: galonPrice
+                    });
+                }
+                
+                sharedBills.value.push({
+                    id: now.getTime() + 1, type: 'galon', title: `Beli Galon - ${formatDate(now)}`, status: 'settled',
+                    targetTotal: galonPrice, totalCollected: galonPrice,
+                    participants: [{ name: payer, paid: true, amount: galonPrice }],
+                    paymentDetails: { paidBy: payer, actualAmount: galonPrice, date: now.toISOString(), method: paymentMethod },
+                    settlement: { surplus: 0 }
+                });
+
+                galonPayerIndex.value = (galonPayerIndex.value + 1) % members.value.length;
+                showGalonModal.value = false;
+                setActiveTab('list', 2);
+            };
+
+            const handleProofUpload = (event) => {
+                const file = event.target.files[0];
+                if (!file) { settleForm.value.proofImageUrl = null; return; }
+                const reader = new FileReader();
+                reader.onload = (e) => { settleForm.value.proofImageUrl = e.target.result; };
+                reader.readAsDataURL(file);
+            };
+
+            const settleBill = () => {
+                if (!billToSettle.value || !settleForm.value.actualAmount) return;
+                const bill = sharedBills.value.find(b => b.id === billToSettle.value.id);
+                bill.status = 'settled';
+                
+                // Copy all properties from settleForm to paymentDetails
+                bill.paymentDetails = { ...settleForm.value, date: new Date().toISOString() };
+                
+                const surplus = bill.totalCollected - bill.paymentDetails.actualAmount;
+                
+                // If paid from kas, create a direct expense transaction
+                if (bill.paymentDetails.paymentMethod === 'kontrakan_fund') {
+                     transactions.value.push({
+                        id: Date.now(),
+                        type: 'patungan_expense',
+                        description: `Bayar patungan "${bill.title}"`,
+                        amount: bill.paymentDetails.actualAmount,
+                        date: new Date().toISOString(),
+                    });
+                }
+
+                // Always record surplus/deficit from collection
+                if (surplus !== 0) {
+                    transactions.value.push({
+                        id: Date.now() + 1,
+                        type: 'bill_surplus',
+                        description: `Sisa/Kurang Kas dari "${bill.title}"`,
+                        amount: surplus,
+                        date: new Date().toISOString(),
+                    });
+                }
+                bill.settlement = { surplus };
+                
+                showSettleModal.value = false;
+                billToSettle.value = null;
+                setActiveTab('list', 2);
+            };
+
+            return {
+                members, activeTab, transactions, sharedBills, cardStates, showSettleModal, billToSettle, appSettings,
+                totalBalance, formatRupiah, activeBills, combinedHistory, patunganForms, settleForm, simpleForm,
+                initiatePatungan, addSimpleTransaction, markAsPaid, openSettleModal, handleProofUpload, settleBill,
+                formatDate, getHistoryItemClass, getHistoryItemIcon, getAmountColor,
+                galonPayerIndex, currentGalonPayer, previousGalonPayer, nextGalonPayer, showGalonModal, galonForm,
+                openGalonModal, confirmBuyGalon,
+                showCustomPatunganModal, openCustomPatunganModal, customPatunganForm, initiateCustomPatungan, getBillTypeDescription,
+                showCancelModal, billToCancel, openCancelModal, confirmCancelPatungan,
+                showResetModal, openResetModal, confirmResetData,
+                // Formatted Inputs
+                formattedSimpleAmount, formattedListrikTarget, formattedCustomTarget, formattedSettleAmount,
+                formattedGalonPrice, formattedSettingGalon, formattedSettingFee, formattedSettingWifi,
+                // Animation
+                setActiveTab, transitionName
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
+
